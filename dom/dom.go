@@ -7,6 +7,7 @@ import (
 	escape "html"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 type Node html.Node
@@ -69,12 +70,31 @@ func (node *Node) FindTagAll(tag string) []*Node {
 	return node.FindAll(matchTag(tag))
 }
 
+func (node *Node) FindTagAtom(tag atom.Atom) *Node {
+	return node.Find(matchTagAtom(tag))
+}
+
+func (node *Node) FindTagAtomAll(tag atom.Atom) []*Node {
+	return node.FindAll(matchTagAtom(tag))
+}
+
 func (node *Node) FindAttr(attr, value string) *Node {
 	return node.Find(matchAttrEquals(attr, value))
 }
 
 func (node *Node) FindAttrAll(attr, value string) []*Node {
 	return node.FindAll(matchAttrEquals(attr, value))
+}
+
+func (node *Node) LookupAttr(attr string) (string, bool) {
+	if node != nil {
+		for _, a := range node.Attr {
+			if a.Key == attr {
+				return a.Val, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (node *Node) Render() string {

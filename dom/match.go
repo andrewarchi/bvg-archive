@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"golang.org/x/net/html"
+	"golang.org/x/net/html/atom"
 )
 
 var spacePattern = regexp.MustCompile("[ \t\n\r\f]+")
@@ -131,5 +132,11 @@ func matchAttrContains(attr, value string) NodeMatcher {
 func matchTag(tag string) NodeMatcher {
 	return func(node *Node) bool {
 		return node.Type == html.ElementNode && node.Data == tag
+	}
+}
+
+func matchTagAtom(tag atom.Atom) NodeMatcher {
+	return func(node *Node) bool {
+		return node.Type == html.ElementNode && node.DataAtom == tag
 	}
 }
