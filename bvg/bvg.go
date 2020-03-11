@@ -8,8 +8,7 @@ import (
 	"golang.org/x/net/html"
 )
 
-func GetLineDownloads(timestamp string) (*html.Node, error) {
-	// .article__body .download .link-list li
+func GetLineDownloads(timestamp string) ([]*dom.Node, error) {
 	page, err := wayback.GetPage("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz", timestamp)
 	if err != nil {
 		return nil, err
@@ -18,9 +17,5 @@ func GetLineDownloads(timestamp string) (*html.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	article := dom.GetElementByClass(doc, "article__body")
-	download := dom.GetElementByClass(article, "download")
-	linkList := dom.GetElementByClass(download, "link-list")
-	// links := dom.GetElementsByType(linkList, "li")
-	return linkList, nil
+	return (*dom.Node)(doc).FindClass("article__body").FindClass("download").FindClass("link-list").FindTagAll("li"), nil
 }
