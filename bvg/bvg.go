@@ -29,7 +29,7 @@ func GetLineDownloads(timestamp string) ([]Download, error) {
 	links := download.FindClass("link-list").FindTagAtomAll(atom.Li)
 	downloads := make([]Download, len(links))
 	for i, link := range links {
-		title := link.FindAttr("class", "link-list__text").FirstChild.Data
+		title := link.FindAttr("class", "link-list__text").TextContent()
 		url, _ := link.FindTagAtom(atom.A).LookupAttr("href")
 		date, _ := link.FindTagAtom(atom.Img).LookupAttr("alt")
 		date = strings.TrimPrefix(date, "Aktualisiert am: ")

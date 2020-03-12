@@ -3,6 +3,7 @@ package dom
 import (
 	"bytes"
 	"io"
+	"strings"
 
 	escape "html"
 
@@ -102,6 +103,35 @@ func (node *Node) Render() string {
 	w := io.Writer(&buf)
 	html.Render(w, (*html.Node)(node))
 	return buf.String()
+}
+
+// TextContent returns the text content of the node and its descendants.
+func (node *Node) TextContent() string {
+	if node == nil {
+		return ""
+	}
+	switch node.Type {
+	case html.TextNode, html.CommentNode:
+		return node.Data
+	case html.DoctypeNode:
+	case html.ElementNode, html.DocumentNode:
+		var b strings.Builder
+		writeTextContent(&b, (*html.Node)(node))
+		return b.String()
+	}
+	return ""
+}
+
+func writeTextContent(b *strings.Builder, node *html.Node) {
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		switch child.Type {
+		case html.TextNode:
+			b.WriteString(child.Data)
+		case html.ElementNode:
+			writeTextContent(b, child)
+		case html.DocumentNode, html.DoctypeNode, html.CommentNode:
+		}
+	}
 }
 
 func Unescape(s string) string {
