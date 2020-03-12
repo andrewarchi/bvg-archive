@@ -3,8 +3,8 @@ package bvg
 import (
 	"strings"
 
-	"github.com/andrewarchi/internet-archive/dom"
-	"github.com/andrewarchi/internet-archive/wayback"
+	"github.com/andrewarchi/bvg-archive/dom"
+	"github.com/andrewarchi/bvg-archive/wayback"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )

@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/andrewarchi/internet-archive/bvg"
-	"github.com/andrewarchi/internet-archive/wayback"
+	"github.com/andrewarchi/bvg-archive/bvg"
+	"github.com/andrewarchi/bvg-archive/wayback"
 )
 
 var illegalPattern = regexp.MustCompile("[/\\?&]")
