@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 )
 
@@ -46,11 +45,6 @@ func GetTimeMap(url string) ([]TimeMap, error) {
 	return timemap, nil
 }
 
-func GetPage(url, timestamp string) ([]byte, error) {
-	res, err := http.Get("http://web.archive.org/web/" + timestamp + "id_/" + url)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-	return ioutil.ReadAll(res.Body)
+func GetPage(url, timestamp string) (*http.Response, error) {
+	return http.Get("http://web.archive.org/web/" + timestamp + "id_/" + url)
 }

@@ -2,12 +2,16 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/andrewarchi/internet-archive/bvg"
 	"github.com/andrewarchi/internet-archive/wayback"
 )
+
+var illegalPattern = regexp.MustCompile("[/\\?&]")
 
 type downloadInfo struct {
 	Title   string
@@ -22,7 +26,7 @@ func main() {
 		exit(err)
 	}
 	captures := make(map[string][]downloadInfo)
-	for _, entry := range timemap[:1] {
+	for _, entry := range timemap {
 		fmt.Printf("%s:\n", entry.Timestamp)
 		downloads, err := bvg.GetLineDownloads(entry.Timestamp)
 		if err != nil {
@@ -50,6 +54,31 @@ func main() {
 		fmt.Println(url)
 		for _, capture := range info {
 			fmt.Printf("%v\t%v\t%v\n", capture.Capture, capture.Version, capture.Title)
+		}
+		fullURL := "https://www.bvg.de" + url
+		timemap, err := wayback.GetTimeMap(fullURL)
+		if err != nil {
+			exit(err)
+		}
+		dir := illegalPattern.ReplaceAllString(url, "_")
+		if err := os.Mkdir(dir, 0o777); err != nil {
+			exit(err)
+		}
+		for i, entry := range timemap {
+			page, err := wayback.GetPage(fullURL, entry.Timestamp)
+			if err != nil {
+				exit(err)
+			}
+			defer page.Body.Close()
+			fileName := fmt.Sprintf("files/%s/%d_%s.pdf", dir, i, entry.Timestamp)
+			file, err := os.Create(fileName)
+			if err != nil {
+				exit(err)
+			}
+			defer file.Close()
+			if _, err := io.Copy(file, page.Body); err != nil {
+				exit(err)
+			}
 		}
 	}
 }

@@ -1,7 +1,6 @@
 package bvg
 
 import (
-	"bytes"
 	"strings"
 
 	"github.com/andrewarchi/internet-archive/dom"
@@ -21,7 +20,8 @@ func GetLineDownloads(timestamp string) ([]Download, error) {
 	if err != nil {
 		return nil, err
 	}
-	doc, err := html.Parse(bytes.NewReader(page))
+	defer page.Body.Close()
+	doc, err := html.Parse(page.Body)
 	if err != nil {
 		return nil, err
 	}
