@@ -60,8 +60,8 @@ func main() {
 		if err != nil {
 			exit(err)
 		}
-		dir := illegalPattern.ReplaceAllString(url, "_")
-		if err := os.Mkdir(dir, 0o777); err != nil {
+		dir := "files/" + illegalPattern.ReplaceAllString(url, "_")
+		if err := os.MkdirAll(dir, 0o777); err != nil {
 			exit(err)
 		}
 		for i, entry := range timemap {
@@ -70,7 +70,7 @@ func main() {
 				exit(err)
 			}
 			defer page.Body.Close()
-			fileName := fmt.Sprintf("files/%s/%d_%s.pdf", dir, i, entry.Timestamp)
+			fileName := fmt.Sprintf("%s/%d_%s.pdf", dir, i, entry.Timestamp)
 			file, err := os.Create(fileName)
 			if err != nil {
 				exit(err)
