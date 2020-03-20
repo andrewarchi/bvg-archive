@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"io"
+	"mime"
+	"net/http"
 	"os"
 	"regexp"
 	"time"
@@ -64,19 +66,30 @@ func main() {
 		if err := os.MkdirAll(dir, 0o777); err != nil {
 			exit(err)
 		}
-		for i, entry := range timemap {
+		for _, entry := range timemap {
 			page, err := wayback.GetPage(fullURL, entry.Timestamp)
 			if err != nil {
 				exit(err)
 			}
 			defer page.Body.Close()
-			fileName := fmt.Sprintf("%s/%d_%s.pdf", dir, i, entry.Timestamp)
-			file, err := os.Create(fileName)
+			filename, err := getFilename(page.Header)
+			if err != nil {
+				exit(err)
+			}
+			path := fmt.Sprintf("%s/%s_%s", dir, entry.Timestamp, filename)
+			file, err := os.Create(path)
 			if err != nil {
 				exit(err)
 			}
 			defer file.Close()
 			if _, err := io.Copy(file, page.Body); err != nil {
+				exit(err)
+			}
+			lastModified, err := getLastModified(page.Header)
+			if err != nil {
+				exit(err)
+			}
+			if err := os.Chtimes(path, lastModified, lastModified); err != nil {
 				exit(err)
 			}
 		}
@@ -86,4 +99,24 @@ func main() {
 func exit(err error) {
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
+}
+
+func getFilename(header http.Header) (string, error) {
+	cd := header.Get("Content-Disposition")
+	if cd == "" {
+		return "", nil
+	}
+	_, params, err := mime.ParseMediaType(cd)
+	if err != nil {
+		return "", err
+	}
+	return params["filename"], nil
+}
+
+func getLastModified(header http.Header) (time.Time, error) {
+	mod := header.Get("X-Archive-Orig-Last-Modified")
+	if mod == "" {
+		mod = header.Get("Last-Modified")
+	}
+	return time.Parse(time.RFC1123, mod)
 }
