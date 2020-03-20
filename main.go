@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
-	"mime"
-	"net/http"
 	"os"
 	"regexp"
 	"time"
@@ -30,7 +27,7 @@ func main() {
 	captures := make(map[string][]downloadInfo)
 	for _, entry := range timemap {
 		fmt.Printf("%s:\n", entry.Timestamp)
-		downloads, err := bvg.GetLineDownloads(entry.Timestamp)
+		downloads, err := bvg.GetNetworkMaps(entry.Timestamp)
 		if err != nil {
 			exit(err)
 		}
@@ -39,15 +36,11 @@ func main() {
 			exit(err)
 		}
 		for _, download := range downloads {
-			version, err := time.Parse("02.01.2006", download.Date)
-			if err != nil {
-				exit(err)
-			}
 			fmt.Printf("%s\t%s\n", download.Date, download.URL)
 			captures[download.URL] = append(captures[download.URL], downloadInfo{
 				Title:   download.Title,
 				URL:     download.URL,
-				Version: version,
+				Version: download.Date,
 				Capture: capture,
 			})
 		}
@@ -67,29 +60,12 @@ func main() {
 			exit(err)
 		}
 		for _, entry := range timemap {
-			page, err := wayback.GetPage(fullURL, entry.Timestamp)
+			resp, err := wayback.GetPage(fullURL, entry.Timestamp)
 			if err != nil {
 				exit(err)
 			}
-			defer page.Body.Close()
-			filename, err := getFilename(page.Header)
-			if err != nil {
-				exit(err)
-			}
-			path := fmt.Sprintf("%s/%s_%s", dir, entry.Timestamp, filename)
-			file, err := os.Create(path)
-			if err != nil {
-				exit(err)
-			}
-			defer file.Close()
-			if _, err := io.Copy(file, page.Body); err != nil {
-				exit(err)
-			}
-			lastModified, err := getLastModified(page.Header)
-			if err != nil {
-				exit(err)
-			}
-			if err := os.Chtimes(path, lastModified, lastModified); err != nil {
+			defer resp.Body.Close()
+			if err := bvg.SavePDF(resp, fmt.Sprintf("%s/%s_", dir, entry.Timestamp)); err != nil {
 				exit(err)
 			}
 		}
@@ -99,24 +75,4 @@ func main() {
 func exit(err error) {
 	fmt.Fprintln(os.Stderr, err)
 	os.Exit(1)
-}
-
-func getFilename(header http.Header) (string, error) {
-	cd := header.Get("Content-Disposition")
-	if cd == "" {
-		return "", nil
-	}
-	_, params, err := mime.ParseMediaType(cd)
-	if err != nil {
-		return "", err
-	}
-	return params["filename"], nil
-}
-
-func getLastModified(header http.Header) (time.Time, error) {
-	mod := header.Get("X-Archive-Orig-Last-Modified")
-	if mod == "" {
-		mod = header.Get("Last-Modified")
-	}
-	return time.Parse(time.RFC1123, mod)
 }

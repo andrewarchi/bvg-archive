@@ -15,6 +15,11 @@ type Node html.Node
 
 type NodeMatcher func(*Node) bool
 
+func Parse(r io.Reader) (*Node, error) {
+	node, err := html.Parse(r)
+	return (*Node)(node), err
+}
+
 func (node *Node) Find(matcher NodeMatcher) *Node {
 	if node == nil {
 		return nil
