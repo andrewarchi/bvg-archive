@@ -6,6 +6,8 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/andrewarchi/bvg-archive/wayback"
 	"golang.org/x/net/html/atom"
 )
+
+var illegal = regexp.MustCompile(`[\0-\x1f:?"*/\\<>|]`)
 
 type Download struct {
 	URL   string
@@ -52,11 +56,16 @@ func GetNetworkMaps(timestamp string) ([]Download, error) {
 	return downloads, nil
 }
 
-func SavePDF(resp *http.Response, pathPrefix string) error {
+func SaveFile(resp *http.Response, pathPrefix string) error {
 	filename, err := getFilename(resp.Header)
 	if err != nil {
 		return err
 	}
+	lastModified, err := getLastModified(resp.Header)
+	if err != nil {
+		return err
+	}
+
 	path := pathPrefix + filename
 	file, err := os.Create(path)
 	if err != nil {
@@ -66,14 +75,50 @@ func SavePDF(resp *http.Response, pathPrefix string) error {
 	if _, err := io.Copy(file, resp.Body); err != nil {
 		return err
 	}
-	lastModified, err := getLastModified(resp.Header)
-	if err != nil {
-		return err
-	}
 	if !lastModified.IsZero() {
 		return os.Chtimes(path, lastModified, lastModified)
 	}
 	return nil
+}
+
+func SaveAllVersions(url, dir string) error {
+	dir = filepath.Join(dir, sanitizeFilename(url))
+	if err := os.MkdirAll(dir, 0o777); err != nil {
+		return err
+	}
+
+	t := time.Now().Format("20060102150405")
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	if err := SaveFile(resp, filepath.Join(dir, t+"live_")); err != nil {
+		return err
+	}
+
+	timemap, err := wayback.GetTimeMap(url)
+	if err != nil {
+		return err
+	}
+	for _, entry := range timemap {
+		resp, err := wayback.GetPage(url, entry.Timestamp)
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+		if err := SaveFile(resp, filepath.Join(dir, entry.Timestamp+"_")); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func sanitizeFilename(filename string) string {
+	filename = strings.TrimPrefix(filename, "https://")
+	filename = strings.TrimPrefix(filename, "http://")
+	filename = strings.TrimPrefix(filename, "www.")
+	filename = illegal.ReplaceAllString(filename, "_")
+	return filename
 }
 
 func getFilename(header http.Header) (string, error) {
@@ -96,7 +141,10 @@ func getLastModified(header http.Header) (time.Time, error) {
 			return time.Time{}, nil
 		}
 	}
-	return time.Parse(time.RFC1123, mod)
+	if t, err := time.Parse(time.RFC1123, mod); err == nil {
+		return t, nil
+	}
+	return time.Parse(time.RFC850, mod)
 }
 
 func hash(r io.Reader) (sum [sha512.Size]byte, err error) {
