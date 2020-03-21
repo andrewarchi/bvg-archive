@@ -16,8 +16,6 @@ import (
 	"golang.org/x/net/html/atom"
 )
 
-var illegal = regexp.MustCompile(`[\0-\x1f:?"*/\\<>|]`)
-
 type Download struct {
 	URL   string
 	Title string
@@ -25,7 +23,13 @@ type Download struct {
 }
 
 func GetNetworkMaps(timestamp string) ([]Download, error) {
-	page, err := wayback.GetPage("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz", timestamp)
+	var page *http.Response
+	var err error
+	if timestamp == "" {
+		page, err = http.Get("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz")
+	} else {
+		page, err = wayback.GetPage("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz", timestamp)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +71,9 @@ func SaveFile(resp *http.Response, pathPrefix string) error {
 	}
 
 	path := pathPrefix + filename
+	if stat, err := os.Stat(path); err == nil && stat.Size() > 0 {
+		return nil // skip existing
+	}
 	file, err := os.Create(path)
 	if err != nil {
 		return err
@@ -82,8 +89,7 @@ func SaveFile(resp *http.Response, pathPrefix string) error {
 }
 
 func SaveAllVersions(url, dir string) error {
-	dir = filepath.Join(dir, sanitizeFilename(url))
-	if err := os.MkdirAll(dir, 0o777); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 
@@ -100,20 +106,23 @@ func SaveAllVersions(url, dir string) error {
 	if err != nil {
 		return err
 	}
-	for _, entry := range timemap {
-		resp, err := wayback.GetPage(url, entry.Timestamp)
+	for i := len(timemap) - 1; i >= 0; i-- {
+		timestamp := timemap[i].Timestamp
+		resp, err := wayback.GetPage(url, timestamp)
 		if err != nil {
 			return err
 		}
 		defer resp.Body.Close()
-		if err := SaveFile(resp, filepath.Join(dir, entry.Timestamp+"_")); err != nil {
+		if err := SaveFile(resp, filepath.Join(dir, timestamp+"_")); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func sanitizeFilename(filename string) string {
+var illegal = regexp.MustCompile(`[\0-\x1f:?"*/\\<>|]`)
+
+func SanitizeFilename(filename string) string {
 	filename = strings.TrimPrefix(filename, "https://")
 	filename = strings.TrimPrefix(filename, "http://")
 	filename = strings.TrimPrefix(filename, "www.")
@@ -133,18 +142,24 @@ func getFilename(header http.Header) (string, error) {
 	return params["filename"], nil
 }
 
+func getRetrieved(header http.Header) (time.Time, error) {
+	return getDate(header, "X-Archive-Orig-Date", "Memento-Datetime", "Date")
+}
+
 func getLastModified(header http.Header) (time.Time, error) {
-	mod := header.Get("X-Archive-Orig-Last-Modified")
-	if mod == "" {
-		mod = header.Get("Last-Modified")
-		if mod == "" {
-			return time.Time{}, nil
+	return getDate(header, "X-Archive-Orig-Last-Modified", "Last-Modified")
+}
+
+func getDate(header http.Header, keys ...string) (time.Time, error) {
+	for _, key := range keys {
+		if h := header.Get(key); h != "" {
+			if t, err := time.Parse(time.RFC1123, h); err == nil {
+				return t, nil
+			}
+			return time.Parse(time.RFC850, h)
 		}
 	}
-	if t, err := time.Parse(time.RFC1123, mod); err == nil {
-		return t, nil
-	}
-	return time.Parse(time.RFC850, mod)
+	return time.Time{}, nil
 }
 
 func hash(r io.Reader) (sum [sha512.Size]byte, err error) {

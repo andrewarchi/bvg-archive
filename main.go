@@ -3,46 +3,66 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
+	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/andrewarchi/bvg-archive/bvg"
 	"github.com/andrewarchi/bvg-archive/wayback"
 )
 
-type downloadInfo struct {
-	Title   string
-	URL     string
-	Version time.Time
-	Capture string
-}
-
 func main() {
-	timemap, err := wayback.GetTimeMap("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz")
+	urls, titles, err := getNetworkMapURLs(false)
 	if err != nil {
 		exit(err)
 	}
-	captures := make(map[string][]downloadInfo)
-	for _, entry := range timemap {
-		fmt.Printf("%s:\n", entry.Timestamp)
-		downloads, err := bvg.GetNetworkMaps(entry.Timestamp)
+	for i, url := range urls {
+		id := strings.TrimPrefix(url, "/de/index.php?section=downloads&cmd=58&download=")
+		dir := filepath.Join("files", bvg.SanitizeFilename(id+" "+titles[i]))
+		if err := bvg.SaveAllVersions("https://www.bvg.de"+url, dir); err != nil {
+			exit(err)
+		}
+	}
+}
+
+func getNetworkMapURLs(archived bool) ([]string, []string, error) {
+	urlMap := make(map[string]string)
+	downloads, err := bvg.GetNetworkMaps("")
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, download := range downloads {
+		urlMap[download.URL] = download.Title
+	}
+
+	if archived {
+		timemap, err := wayback.GetTimeMap("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz")
 		if err != nil {
-			exit(err)
+			return nil, nil, err
 		}
-		for _, download := range downloads {
-			fmt.Printf("%s\t%s\n", download.Date, download.URL)
-			captures[download.URL] = append(captures[download.URL], downloadInfo{
-				Title:   download.Title,
-				URL:     download.URL,
-				Version: download.Date,
-				Capture: entry.Timestamp,
-			})
-		}
-	}
-	for url := range captures {
-		if err := bvg.SaveAllVersions("https://www.bvg.de"+url, "files/"); err != nil {
-			exit(err)
+		for _, entry := range timemap {
+			downloads, err := bvg.GetNetworkMaps(entry.Timestamp)
+			if err != nil {
+				return nil, nil, err
+			}
+			for _, download := range downloads {
+				if _, ok := urlMap[download.URL]; !ok {
+					urlMap[download.URL] = download.Title
+				}
+			}
 		}
 	}
+
+	urls := make([]string, 0, len(urlMap))
+	for url := range urlMap {
+		urls = append(urls, url)
+	}
+	sort.Strings(urls)
+	titles := make([]string, len(urlMap))
+	for i, url := range urls {
+		titles[i] = urlMap[url]
+	}
+	return urls, titles, nil
 }
 
 func exit(err error) {
