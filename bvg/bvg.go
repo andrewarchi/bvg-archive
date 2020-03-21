@@ -3,6 +3,7 @@ package bvg
 import (
 	"crypto/sha512"
 	"io"
+	"io/ioutil"
 	"mime"
 	"net/http"
 	"os"
@@ -92,14 +93,20 @@ func SaveAllVersions(url, dir string) error {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
-
-	t := time.Now().Format("20060102150405")
-	resp, err := http.Get(url)
+	savedTimes, savedLive, err := getSavedTimes(dir, 2*time.Hour)
 	if err != nil {
 		return err
 	}
-	if err := SaveFile(resp, filepath.Join(dir, t+"live_")); err != nil {
-		return err
+
+	if !savedLive {
+		t := time.Now().Format(wayback.TimestampFormat)
+		resp, err := http.Get(url)
+		if err != nil {
+			return err
+		}
+		if err := SaveFile(resp, filepath.Join(dir, t+"live_")); err != nil {
+			return err
+		}
 	}
 
 	timemap, err := wayback.GetTimeMap(url)
@@ -108,6 +115,9 @@ func SaveAllVersions(url, dir string) error {
 	}
 	for i := len(timemap) - 1; i >= 0; i-- {
 		timestamp := timemap[i].Timestamp
+		if _, ok := savedTimes[timestamp]; ok {
+			continue
+		}
 		resp, err := wayback.GetPage(url, timestamp)
 		if err != nil {
 			return err
@@ -118,6 +128,37 @@ func SaveAllVersions(url, dir string) error {
 		}
 	}
 	return nil
+}
+
+func getSavedTimes(dir string, d time.Duration) (map[string]struct{}, bool, error) {
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return nil, false, err
+	}
+	times := make(map[string]struct{})
+	hasLive := false
+	for _, file := range files {
+		if !file.IsDir() && file.Size() > 0 {
+			n := file.Name()
+			l := len(wayback.TimestampFormat)
+			if len(n) < l {
+				continue
+			}
+			timestamp := n[:l]
+			t, err := time.Parse(wayback.TimestampFormat, timestamp)
+			if err != nil {
+				continue
+			}
+			if len(n) >= l+4 && n[l:l+4] == "live" {
+				if time.Since(t) <= d {
+					hasLive = true
+				}
+			} else {
+				times[timestamp] = struct{}{}
+			}
+		}
+	}
+	return times, hasLive, nil
 }
 
 var illegal = regexp.MustCompile(`[\0-\x1f:?"*/\\<>|]`)

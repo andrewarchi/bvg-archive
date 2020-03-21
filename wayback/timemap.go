@@ -21,8 +21,10 @@ type TimeMap struct {
 	Filename   string
 }
 
+const TimestampFormat = "20060102150405"
+
 func GetTimeMap(url string) ([]TimeMap, error) {
-	res, err := http.Get("http://web.archive.org/web/timemap/json/" + url)
+	res, err := http.Get("https://web.archive.org/web/timemap/json/" + url)
 	if err != nil {
 		return nil, err
 	}
@@ -46,5 +48,5 @@ func GetTimeMap(url string) ([]TimeMap, error) {
 }
 
 func GetPage(url, timestamp string) (*http.Response, error) {
-	return http.Get("http://web.archive.org/web/" + timestamp + "id_/" + url)
+	return http.Get("https://web.archive.org/web/" + timestamp + "id_/" + url)
 }
