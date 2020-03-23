@@ -2,12 +2,12 @@ package bvg
 
 import "testing"
 
-func TestGetLineDownloads(t *testing.T) {
-	downloads, err := GetLineDownloads("20200229212100")
+func TestGetNetworkMaps(t *testing.T) {
+	maps, err := GetNetworkMaps("")
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, download := range downloads {
-		t.Error(download)
+	for _, m := range maps {
+		t.Error(m)
 	}
 }

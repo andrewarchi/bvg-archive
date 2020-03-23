@@ -1,3 +1,4 @@
+// Package dom queries elements in an HTML DOM tree.
 package dom
 
 import (

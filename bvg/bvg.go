@@ -2,63 +2,84 @@ package bvg
 
 import (
 	"crypto/sha512"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"mime"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
-	"github.com/andrewarchi/bvg-archive/dom"
+	"github.com/PuerkitoBio/goquery"
+
 	"github.com/andrewarchi/bvg-archive/wayback"
-	"golang.org/x/net/html/atom"
 )
 
-type Download struct {
+type NetworkMap struct {
 	URL   string
 	Title string
 	Date  time.Time
 }
 
-func GetNetworkMaps(timestamp string) ([]Download, error) {
-	var page *http.Response
-	var err error
-	if timestamp == "" {
-		page, err = http.Get("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz")
-	} else {
-		page, err = wayback.GetPage("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz", timestamp)
+func GetNetworkMaps(timestamp string) ([]NetworkMap, error) {
+	url := "https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz"
+	if timestamp != "" {
+		url = wayback.PageURL(url, timestamp)
 	}
+	doc, err := goquery.NewDocument(url)
 	if err != nil {
 		return nil, err
 	}
-	defer page.Body.Close()
-	doc, err := dom.Parse(page.Body)
-	if err != nil {
-		return nil, err
-	}
-	download := doc.FindClass("article__body").FindClass("download")
-	links := download.FindClass("link-list").FindTagAtomAll(atom.Li)
-	downloads := make([]Download, len(links))
-	for i, link := range links {
-		url, _ := link.FindTagAtom(atom.A).LookupAttr("href")
-		title := link.FindAttr("class", "link-list__text").TextContent()
-
-		date, _ := link.FindTagAtom(atom.Img).LookupAttr("alt")
+	links := doc.Find(".article__body .download .link-list li.link-list__item")
+	maps := make([]NetworkMap, links.Length())
+	links.Each(func(i int, s *goquery.Selection) {
+		url, _ := s.Find("a").Attr("href")
+		title := s.Find(".link-list__text").First().Text()
+		date, _ := s.Find("img").Attr("alt")
 		date = strings.TrimPrefix(date, "Aktualisiert am: ")
+
 		var t time.Time
 		if date != "" {
-			t, err = time.Parse("02.01.2006", date)
-			if err != nil {
-				return nil, err
-			}
+			t, _ = time.Parse("02.01.2006", date)
 		}
 
-		downloads[i] = Download{url, title, t}
+		maps[i] = NetworkMap{url, title, t}
+	})
+	return maps, nil
+}
+
+type LineInfo struct {
+	LongName  string
+	ShortName string
+	PDFURL    string
+	ImageURL  string
+}
+
+func GetLineInfo(timestamp string) ([]LineInfo, error) {
+	url := "https://www.bvg.de/de/Fahrinfo/Haltestelleinfo"
+	if timestamp != "" {
+		url = wayback.PageURL(url, timestamp)
 	}
-	return downloads, nil
+	doc, err := goquery.NewDocument(url)
+	if err != nil {
+		return nil, err
+	}
+	var info []LineInfo
+	doc.Find(".tab-list__body tr").Each(func(i int, s *goquery.Selection) {
+		icon := s.Find(".tab-list__icon .icon-t").First()
+		if icon.Length() != 0 {
+			long := icon.Find(".visuallyhidden").Text()
+			short := strings.TrimSpace(icon.Nodes[0].NextSibling.Data)
+			pdf, _ := s.Find(".tab-list__text a").Attr("href")
+			image, _ := s.Find(".tab-list__text ~ .tab-list__text a").Attr("href")
+			info = append(info, LineInfo{long, short, pdf, image})
+		}
+	})
+	return info, nil
 }
 
 func SaveFile(resp *http.Response, pathPrefix string) error {
@@ -70,9 +91,13 @@ func SaveFile(resp *http.Response, pathPrefix string) error {
 	if err != nil {
 		return err
 	}
+	if filename == "" {
+		filename = SanitizeFilename(path.Base(resp.Request.URL.Path))
+	}
 
 	path := pathPrefix + filename
 	if stat, err := os.Stat(path); err == nil && stat.Size() > 0 {
+		fmt.Println("Skipped")
 		return nil // skip existing
 	}
 	file, err := os.Create(path)

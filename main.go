@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -12,6 +13,9 @@ import (
 )
 
 func main() {
+	if err := saveLineInfo(); err != nil {
+		exit(err)
+	}
 	urls, titles, err := getNetworkMapURLs(false)
 	if err != nil {
 		exit(err)
@@ -63,6 +67,29 @@ func getNetworkMapURLs(archived bool) ([]string, []string, error) {
 		titles[i] = urlMap[url]
 	}
 	return urls, titles, nil
+}
+
+func saveLineInfo() error {
+	info, err := bvg.GetLineInfo("")
+	if err != nil {
+		return err
+	}
+
+	dir := "files/lines/"
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	for _, line := range info {
+		fmt.Println("https://www.bvg.de" + line.PDFURL)
+		resp, err := http.Get("https://www.bvg.de" + line.PDFURL)
+		if err != nil {
+			return err
+		}
+		if err := bvg.SaveFile(resp, dir); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func exit(err error) {

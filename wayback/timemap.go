@@ -48,5 +48,9 @@ func GetTimeMap(url string) ([]TimeMap, error) {
 }
 
 func GetPage(url, timestamp string) (*http.Response, error) {
-	return http.Get("https://web.archive.org/web/" + timestamp + "id_/" + url)
+	return http.Get(PageURL(url, timestamp))
+}
+
+func PageURL(url, timestamp string) string {
+	return "https://web.archive.org/web/" + timestamp + "id_/" + url
 }
