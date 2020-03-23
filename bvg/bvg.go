@@ -219,10 +219,7 @@ func getLastModified(header http.Header) (time.Time, error) {
 func getDate(header http.Header, keys ...string) (time.Time, error) {
 	for _, key := range keys {
 		if h := header.Get(key); h != "" {
-			if t, err := time.Parse(time.RFC1123, h); err == nil {
-				return t, nil
-			}
-			return time.Parse(time.RFC850, h)
+			return http.ParseTime(h)
 		}
 	}
 	return time.Time{}, nil
