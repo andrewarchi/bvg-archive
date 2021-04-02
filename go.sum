@@ -100,8 +100,8 @@ github.com/andrewarchi/archive v0.0.0-20210205094453-9a6f6fa5022b/go.mod h1:4eMQ
 github.com/andrewarchi/archive v0.0.0-20210213193640-3a6449eed2ec/go.mod h1:DVGr39JZfOPYoKY00lZkuaeDGs6ipF7JoI7moEmXBEk=
 github.com/andrewarchi/browser v0.0.0-20210205094827-8f813da0079a h1:5yaxzdGaV4agz0B30NOCyP8W+d3dQ8aCOAyjiGxnJZ4=
 github.com/andrewarchi/browser v0.0.0-20210205094827-8f813da0079a/go.mod h1:fIyWA87GnLlH7Gs4dVGwatgw7XIYtrMpqOvYiPFrHZs=
-github.com/andrewarchi/urlhero v0.0.0-20210402075230-37fa4220f516 h1:Bw3AIU8EVywC6AHyhPAooAF9ZpYFCmn+Jk4+ZUC23rI=
-github.com/andrewarchi/urlhero v0.0.0-20210402075230-37fa4220f516/go.mod h1:rUurfg7rOKANCIwPWyJLqwIHL+GQy+4wUoNvdgqFZc4=
+github.com/andrewarchi/urlhero v0.0.0-20210402090700-f34bf0ddac3b h1:jwLEk7+dl4PBsjQly5lWCdwD5xbK1HhzEaaTOfDFRqQ=
+github.com/andrewarchi/urlhero v0.0.0-20210402090700-f34bf0ddac3b/go.mod h1:rUurfg7rOKANCIwPWyJLqwIHL+GQy+4wUoNvdgqFZc4=
 github.com/andybalholm/cascadia v1.1.0/go.mod h1:GsXiBklL0woXo1j/WYWtSYYC4ouU9PqHO0sqidkEA4Y=
 github.com/andybalholm/cascadia v1.2.0 h1:vuRCkM5Ozh/BfmsaTm26kbjm0mIOM3yS5Ek/F5h18aE=
 github.com/andybalholm/cascadia v1.2.0/go.mod h1:YCyR8vOZT9aZ1CHEd8ap0gMVm2aFgxBp0T0eFw1RUQY=

@@ -123,11 +123,12 @@ func SaveAllVersions(url, dir string) error {
 	}
 
 	if !savedLive {
-		t := time.Now().Format(ia.TimestampFormat)
+		fmt.Println(url)
 		resp, err := http.Get(url)
 		if err != nil {
 			return err
 		}
+		t := time.Now().Format(ia.TimestampFormat)
 		if err := SaveFile(resp, filepath.Join(dir, t+"live_")); err != nil {
 			return err
 		}
@@ -145,7 +146,9 @@ func SaveAllVersions(url, dir string) error {
 		if _, ok := savedTimes[timestamp]; ok {
 			continue
 		}
-		resp, err := http.Get(ia.PageURL(url, timestamp))
+		iaURL := ia.PageURL(url, timestamp)
+		fmt.Println(iaURL)
+		resp, err := http.Get(iaURL)
 		if err != nil {
 			return err
 		}

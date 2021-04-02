@@ -13,8 +13,11 @@ import (
 )
 
 func main() {
-	if err := saveLineInfo(); err != nil {
-		exit(err)
+	// Usage: bvg-archive [dir]
+
+	dir := "files"
+	if len(os.Args) >= 2 {
+		dir = os.Args[1]
 	}
 	urls, titles, err := getNetworkMapURLs(false)
 	if err != nil {
@@ -22,10 +25,13 @@ func main() {
 	}
 	for i, url := range urls {
 		id := strings.TrimPrefix(url, "/de/index.php?section=downloads&cmd=58&download=")
-		dir := filepath.Join("files", bvg.SanitizeFilename(id+" "+titles[i]))
-		if err := bvg.SaveAllVersions("https://www.bvg.de"+url, dir); err != nil {
+		out := filepath.Join(dir, bvg.SanitizeFilename(id+" "+titles[i]))
+		if err := bvg.SaveAllVersions("https://www.bvg.de"+url, out); err != nil {
 			exit(err)
 		}
+	}
+	if err := saveLineInfo(dir + "/lines/"); err != nil {
+		exit(err)
 	}
 }
 
@@ -72,19 +78,19 @@ func getNetworkMapURLs(archived bool) ([]string, []string, error) {
 	return urls, titles, nil
 }
 
-func saveLineInfo() error {
+func saveLineInfo(dir string) error {
 	info, err := bvg.GetLineInfo("")
 	if err != nil {
 		return err
 	}
 
-	dir := "files/lines/"
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	for _, line := range info {
-		fmt.Println("https://www.bvg.de" + line.PDFURL)
-		resp, err := http.Get("https://www.bvg.de" + line.PDFURL)
+		url := "https://www.bvg.de" + line.PDFURL
+		fmt.Println(url)
+		resp, err := http.Get(url)
 		if err != nil {
 			return err
 		}
