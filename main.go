@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/andrewarchi/bvg-archive/bvg"
-	"github.com/andrewarchi/bvg-archive/wayback"
+	"github.com/andrewarchi/urlhero/ia"
 )
 
 func main() {
@@ -40,12 +40,15 @@ func getNetworkMapURLs(archived bool) ([]string, []string, error) {
 	}
 
 	if archived {
-		timemap, err := wayback.GetTimeMap("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz")
+		timemap, err := ia.GetTimemap("https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz", &ia.TimemapOptions{
+			Fields: []string{"timestamp"},
+			Limit:  100000,
+		})
 		if err != nil {
 			return nil, nil, err
 		}
 		for _, entry := range timemap {
-			downloads, err := bvg.GetNetworkMaps(entry.Timestamp)
+			downloads, err := bvg.GetNetworkMaps(entry[0])
 			if err != nil {
 				return nil, nil, err
 			}

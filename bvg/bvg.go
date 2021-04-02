@@ -15,8 +15,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-
-	"github.com/andrewarchi/bvg-archive/wayback"
+	"github.com/andrewarchi/urlhero/ia"
 )
 
 type NetworkMap struct {
@@ -28,7 +27,7 @@ type NetworkMap struct {
 func GetNetworkMaps(timestamp string) ([]NetworkMap, error) {
 	url := "https://www.bvg.de/de/Fahrinfo/Downloads/BVG-Liniennetz"
 	if timestamp != "" {
-		url = wayback.PageURL(url, timestamp)
+		url = ia.PageURL(url, timestamp)
 	}
 	doc, err := goquery.NewDocument(url)
 	if err != nil {
@@ -62,7 +61,7 @@ type LineInfo struct {
 func GetLineInfo(timestamp string) ([]LineInfo, error) {
 	url := "https://www.bvg.de/de/Fahrinfo/Haltestelleinfo"
 	if timestamp != "" {
-		url = wayback.PageURL(url, timestamp)
+		url = ia.PageURL(url, timestamp)
 	}
 	doc, err := goquery.NewDocument(url)
 	if err != nil {
@@ -124,7 +123,7 @@ func SaveAllVersions(url, dir string) error {
 	}
 
 	if !savedLive {
-		t := time.Now().Format(wayback.TimestampFormat)
+		t := time.Now().Format(ia.TimestampFormat)
 		resp, err := http.Get(url)
 		if err != nil {
 			return err
@@ -134,16 +133,19 @@ func SaveAllVersions(url, dir string) error {
 		}
 	}
 
-	timemap, err := wayback.GetTimeMap(url)
+	timemap, err := ia.GetTimemap(url, &ia.TimemapOptions{
+		Fields: []string{"timestamp"},
+		Limit:  100000,
+	})
 	if err != nil {
 		return err
 	}
 	for i := len(timemap) - 1; i >= 0; i-- {
-		timestamp := timemap[i].Timestamp
+		timestamp := timemap[i][0]
 		if _, ok := savedTimes[timestamp]; ok {
 			continue
 		}
-		resp, err := wayback.GetPage(url, timestamp)
+		resp, err := http.Get(ia.PageURL(url, timestamp))
 		if err != nil {
 			return err
 		}
@@ -165,12 +167,12 @@ func getSavedTimes(dir string, d time.Duration) (map[string]struct{}, bool, erro
 	for _, file := range files {
 		if !file.IsDir() && file.Size() > 0 {
 			n := file.Name()
-			l := len(wayback.TimestampFormat)
+			l := len(ia.TimestampFormat)
 			if len(n) < l {
 				continue
 			}
 			timestamp := n[:l]
-			t, err := time.Parse(wayback.TimestampFormat, timestamp)
+			t, err := time.Parse(ia.TimestampFormat, timestamp)
 			if err != nil {
 				continue
 			}
